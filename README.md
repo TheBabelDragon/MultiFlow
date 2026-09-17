@@ -67,8 +67,36 @@ Canonical JSON problems:
 | `examples/simple.json` | Single resource, single task |
 | `examples/corporate.json` | Five schedules, shared forklift/workers |
 | `examples/infeasible.json` | Capacity exhaustion → `NO_COMPLETE_SOLUTION` |
+| `examples/solver-benchmark.json` | Cross-backend comparison |
 
 ---
+
+## Solver fabric
+
+```python
+from multiflow import SchedulingProblem, get_solver, Validator
+
+problem = SchedulingProblem.from_json("examples/corporate.json")
+result = get_solver("classical").solve_result(problem)
+for candidate in result.candidates:
+    print(Validator().validate(problem, candidate).admissible)
+```
+
+| Backend | Install | Status |
+|---------|---------|--------|
+| Classical | core | always available |
+| CP-SAT | `pip install "multiflow[cp-sat]"` | optional OR-Tools |
+| MILP | `pip install "multiflow[milp]"` | optional PuLP |
+| Quantum | companion | interface → `UNAVAILABLE` |
+
+```bash
+multiflow solve examples/corporate.json --solver classical
+multiflow solve examples/corporate.json --solver cp-sat
+multiflow solvers
+python benchmarks/compare_solvers.py examples/solver-benchmark.json
+```
+
+See [docs/solver-fabric.md](docs/solver-fabric.md).
 
 ## What MultiFlow is
 
@@ -77,30 +105,7 @@ Canonical JSON problems:
 - Independent validator (solver cannot define correctness)
 - Multi-schedule support with shared-resource arbitration
 - Explanation chains on every rejection
-- Pluggable solver fabric (classical first)
-- Deterministic classical solver
-- Schema-versioned JSON problem format + CLI
-
-## What MultiFlow is not (yet)
-
-- LLM-first scheduling · autonomous agents · payroll/HR/CRM/ERP
-- Quantum hardware integration · enterprise SSO · billing
-
----
-
-## Showflow relationship
-
-Showflow remains a focused domain application. MultiFlow does **not** rewrite or absorb it.
-
-| Showflow | MultiFlow |
-|----------|-----------|
-| Worker | Resource |
-| Show / Showtime | Task |
-| SetTime (A/B/C) | TimeWindow |
-| Hard no-overlap | Hard Constraint |
-| Soft scoring | Objective |
-
----
+- Pluggable solver fabric (classical / CP-SAT / MILP / quantum interface)
 
 ## License
 
