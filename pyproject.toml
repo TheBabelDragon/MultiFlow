@@ -23,9 +23,19 @@ dev = [
     "pytest-cov>=4.0",
     "httpx>=0.27",
 ]
+cp-sat = [
+    "ortools>=9.8",
+]
+milp = [
+    "pulp>=2.8",
+]
+all = [
+    "multiflow[cp-sat,milp]",
+]
 
 [project.scripts]
 multiflow-demo = "multiflow.demo.corporate:main"
+multiflow = "multiflow.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
