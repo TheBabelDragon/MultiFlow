@@ -3,241 +3,373 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MultiFlow — shared resources, competing schedules, constraint arbitration</title>
+  <title>MultiFlow — five schedules, shared resources, one arbitration engine</title>
   <style>
     :root {
-      --bg: #0b0f14; --panel: #141b24; --panel2: #1a2330;
-      --text: #e8eef6; --muted: #8b9bb0; --line: #243044;
-      --accent: #4d9fff; --hard: #ff6b6b; --soft: #f0c14a; --ok: #3dd68c;
+      --bg:#090c11; --panel:#121820; --panel2:#182230; --line:#243044;
+      --text:#e8eef6; --muted:#8b9bb0; --accent:#4d9fff;
+      --hard:#ff6b6b; --ok:#3dd68c; --soft:#f0c14a; --warn:#ff9f43;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-           background: var(--bg); color: var(--text); line-height: 1.55; }
-    a { color: var(--accent); }
-    header { padding: 1.5rem 1.5rem 1rem; border-bottom: 1px solid var(--line); }
-    header h1 { margin: 0; font-size: 1.5rem; letter-spacing: .03em; }
-    header .tagline { color: var(--muted); margin: .4rem 0 0; }
-    main { max-width: 1080px; margin: 0 auto; padding: 1.5rem; }
-    .constitution {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: .78rem; background: var(--panel); border: 1px solid var(--line);
-      border-radius: 10px; padding: 1rem 1.2rem; overflow-x: auto; white-space: pre;
-      color: #c5d4e8; margin: 1rem 0 1.5rem;
-    }
-    .story {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: .6rem; margin: 1rem 0 1.5rem;
-    }
-    .story .box {
-      background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
-      padding: .7rem .8rem; text-align: center; font-size: .85rem;
-    }
-    .story .box strong { display: block; color: var(--accent); margin-bottom: .25rem; }
-    .arrow { text-align: center; color: var(--muted); font-size: 1.2rem; margin: .2rem 0; }
-    .row { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
-    button {
-      background: var(--accent); color: #fff; border: 0; padding: .6rem 1.1rem;
-      border-radius: 7px; cursor: pointer; font-weight: 600; font-size: .9rem;
-    }
-    button.secondary { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
-    button:hover { filter: brightness(1.08); }
-    .panel {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-      padding: 1rem 1.15rem; margin-bottom: 1rem;
-    }
-    .panel h2 { margin: 0 0 .75rem; font-size: .85rem; text-transform: uppercase;
-                letter-spacing: .07em; color: var(--muted); }
-    .tag {
-      display: inline-block; padding: .12rem .45rem; border-radius: 4px;
-      font-size: .72rem; font-weight: 700; margin-right: .25rem;
-    }
-    .tag.hard { background: rgba(255,107,107,.18); color: var(--hard); }
-    .tag.ok { background: rgba(61,214,140,.15); color: var(--ok); }
-    .tag.soft { background: rgba(240,193,74,.15); color: var(--soft); }
-    .chain {
-      border-left: 3px solid var(--hard); padding-left: .85rem; margin: .6rem 0;
-      color: var(--muted); font-size: .88rem;
-    }
-    .chain .step { margin: .2rem 0; }
-    ul { margin: .35rem 0; padding-left: 1.15rem; }
-    li { margin: .2rem 0; }
-    footer { color: var(--muted); font-size: .8rem; padding: 1.5rem; text-align: center;
-             border-top: 1px solid var(--line); margin-top: 2rem; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;
+      background:var(--bg);color:var(--text);line-height:1.5}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    header{padding:1.4rem 1.5rem;border-bottom:1px solid var(--line)}
+    header h1{margin:0;font-size:1.45rem;letter-spacing:.04em}
+    header p{margin:.35rem 0 0;color:var(--muted);font-size:.95rem}
+    main{max-width:980px;margin:0 auto;padding:1.25rem 1.25rem 3rem}
+    .pill{display:inline-block;padding:.15rem .55rem;border-radius:999px;font-size:.72rem;
+      font-weight:700;letter-spacing:.04em}
+    .pill.ok{background:rgba(61,214,140,.15);color:var(--ok)}
+    .pill.hard{background:rgba(255,107,107,.18);color:var(--hard)}
+    .pill.warn{background:rgba(255,159,67,.18);color:var(--warn)}
+    .pill.soft{background:rgba(240,193,74,.15);color:var(--soft)}
+    .pill.muted{background:rgba(139,155,176,.12);color:var(--muted)}
+    .flow{display:grid;gap:.55rem;margin:1.25rem 0}
+    .sched-row{display:grid;grid-template-columns:120px 1fr;gap:.5rem;align-items:center}
+    .sched-name{font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.05em}
+    .sched-bar{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+      padding:.55rem .7rem;font-size:.88rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+    .res{background:rgba(77,159,255,.12);border:1px solid rgba(77,159,255,.25);
+      color:var(--accent);padding:.1rem .4rem;border-radius:4px;font-size:.75rem;font-weight:600}
+    .res.conflict{background:rgba(255,107,107,.15);border-color:rgba(255,107,107,.4);color:var(--hard)}
+    .res.ok{background:rgba(61,214,140,.12);border-color:rgba(61,214,140,.35);color:var(--ok)}
+    .center{text-align:center;color:var(--muted);font-size:.9rem;margin:.4rem 0}
+    .conflict-banner{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.35);
+      border-radius:10px;padding:1rem 1.15rem;margin:1rem 0}
+    .conflict-banner h2{margin:0 0 .5rem;font-size:1rem;color:var(--hard)}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+      padding:1rem 1.15rem;margin:1rem 0}
+    .panel h3{margin:0 0 .65rem;font-size:.8rem;text-transform:uppercase;
+      letter-spacing:.07em;color:var(--muted)}
+    .chain{border-left:3px solid var(--hard);padding-left:.9rem;margin:.5rem 0;font-size:.9rem}
+    .chain div{margin:.25rem 0;color:var(--muted)}
+    .chain div strong{color:var(--text)}
+    .cands{display:grid;gap:.6rem}
+    .cand{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+      padding:.75rem .9rem;cursor:pointer;transition:border-color .15s}
+    .cand:hover,.cand.selected{border-color:var(--accent)}
+    .cand.rejected{opacity:.75}
+    .cand h4{margin:0 0 .35rem;font-size:.95rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+    .cand ul{margin:.3rem 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--muted)}
+    .validator{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.45rem}
+    .vcheck{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+      padding:.5rem .65rem;font-size:.82rem;display:flex;justify-content:space-between;align-items:center}
+    .vcheck.pass{border-color:rgba(61,214,140,.4)}
+    .vcheck.fail{border-color:rgba(255,107,107,.45)}
+    .arch{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.72rem;
+      background:var(--panel);border:1px solid var(--line);border-radius:10px;
+      padding:1rem;overflow-x:auto;white-space:pre;color:#c5d4e8;margin:1rem 0}
+    .row{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0}
+    button{background:var(--accent);color:#fff;border:0;padding:.55rem 1rem;border-radius:7px;
+      cursor:pointer;font-weight:600;font-size:.88rem}
+    button.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+    button:hover{filter:brightness(1.08)}
+    button:disabled{opacity:.4;cursor:default;filter:none}
+    .compare{width:100%;border-collapse:collapse;font-size:.85rem}
+    .compare th,.compare td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left}
+    .compare th{color:var(--muted);font-weight:600;background:var(--panel2)}
+    .compare td.dash{color:var(--muted)}
+    footer{text-align:center;color:var(--muted);font-size:.8rem;padding:1.5rem;
+      border-top:1px solid var(--line);margin-top:2rem}
+    .hidden{display:none}
+    .phase-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+      margin:1.5rem 0 .5rem}
   </style>
 </head>
 <body>
   <header>
     <h1>MultiFlow</h1>
-    <p class="tagline">Shared resources. Competing schedules. Constraint arbitration.</p>
+    <p>Five schedules. Shared resources. One arbitration engine.</p>
   </header>
   <main>
-    <div class="constitution">             MULTIFLOW
-      +----------------------+
-      |   DOMAIN INPUT       |
-      | people / machines /  |
-      | rooms / vehicles ... |
-      +----------+-----------+
-                 |
-                 v
-      +----------------------+
-      | NORMALIZED PROBLEM   |
-      | resources + tasks +  |
-      | constraints + goals  |
-      +----------+-----------+
-                 |
-                 v
-      +----------------------+
-      |    SOLVER FABRIC     |
-      | classical / MILP /   |
-      | CP / quantum         |
-      +----------+-----------+
-                 |
-                 v
-      +----------------------+
-      |     VALIDATOR        |
-      | independent truth    |
-      +----------+-----------+
-                 |
-                 v
-      +----------------------+
-      |   ADMISSIBLE PLAN    |
-      +----------------------+</div>
+    <p style="color:var(--muted);margin:0 0 1rem;font-size:.92rem">
+      MultiFlow owns the problem definition and correctness.
+      <strong style="color:var(--text)">Solvers only propose.</strong>
+      An independent validator decides what is admissible.
+    </p>
 
-    <div class="story">
-      <div class="box"><strong>Staffing</strong>schedule</div>
-      <div class="box"><strong>Maintenance</strong>schedule</div>
-      <div class="box"><strong>Warehouse</strong>schedule</div>
-      <div class="box"><strong>Delivery</strong>schedule</div>
-           <div class="box"><strong>Facilities</strong>schedule</div>
+    <div class="phase-label">1 · Competing schedules</div>
+    <div class="flow" id="schedules">
+      <div class="sched-row">
+        <div class="sched-name">Staffing</div>
+        <div class="sched-bar">Standup 08:00–08:45 · <span class="res ok" data-r="room">Room R204</span></div>
+      </div>
+      <div class="sched-row">
+        <div class="sched-name">Maintenance</div>
+        <div class="sched-bar">Forklift PM 09:00–09:30 · <span class="res" data-r="forklift">Forklift F-17</span> <span class="res ok" data-r="wb">Worker B</span></div>
+      </div>
+      <div class="sched-row">
+        <div class="sched-name">Warehouse</div>
+        <div class="sched-bar">Load pallets 08:00–10:00 · <span class="res" data-r="forklift">Forklift F-17</span> <span class="res ok" data-r="wa">Worker A</span></div>
+      </div>
+      <div class="sched-row">
+        <div class="sched-name">Delivery</div>
+        <div class="sched-bar">Route 3 09:15–10:15 · <span class="res ok" data-r="v03">Vehicle V03</span></div>
+      </div>
+      <div class="sched-row">
+        <div class="sched-name">Facilities</div>
+        <div class="sched-bar">HVAC 10:00–11:00 · <span class="res ok" data-r="wa">Worker A</span></div>
+      </div>
     </div>
-    <div class="arrow">shared resources: Forklift F-17 · Worker A/B · Room R204 · Vehicle V03</div>
-    <div class="arrow">v</div>
-    <div class="story" style="grid-template-columns:1fr">
-      <div class="box"><strong style="color:var(--hard)">CONFLICT</strong>detect → explain → alternatives → validate</div>
+
+    <div class="center" id="arrow1">↓ shared resource contention</div>
+
+    <div class="conflict-banner hidden" id="conflictBanner">
+      <h2>⚠ CONFLICT · HARD</h2>
+      <p style="margin:0 0 .5rem"><strong>Forklift F-17</strong> double-booked</p>
+      <p style="margin:0;color:var(--muted);font-size:.9rem">
+        Warehouse load <code>08:00–10:00</code> overlaps Maintenance PM <code>09:00–09:30</code>
+        · schedules <strong>Warehouse ↔ Maintenance</strong> · overlap <strong>30 minutes</strong>
+      </p>
+    </div>
+
+    <div class="panel hidden" id="whyPanel">
+      <h3>Why?</h3>
+      <div class="chain">
+        <div><strong>WHY?</strong></div>
+        <div>→ Resource: <strong>Forklift F-17</strong> (capacity 1)</div>
+        <div>→ Schedules: <strong>Warehouse</strong> ↔ <strong>Maintenance</strong></div>
+        <div>→ Tasks: Warehouse load pallets · Forklift preventive maintenance</div>
+        <div>→ Constraint: <strong>NoOverlap</strong> (HARD)</div>
+        <div>→ Time range: <strong>09:00–09:30</strong></div>
+        <div>→ Severity: HARD — no admissible plan may keep both assignments</div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="candPanel">
+      <h3>Arbitration candidates · classical solver proposes</h3>
+      <p style="margin:0 0 .75rem;color:var(--muted);font-size:.88rem">
+        Solvers only propose. Click a candidate to run the independent validator.
+      </p>
+      <div class="cands" id="cands"></div>
+    </div>
+
+    <div class="panel hidden" id="valPanel">
+      <h3>Independent validator</h3>
+      <div class="arch" style="margin:0 0 1rem;font-size:.7rem">CLASSICAL SOLVER
+      |
+      | proposes
+      v
++-----------------+
+| CANDIDATE PLAN  |
++--------+--------+
+         |
+         v
++------------------------+
+| INDEPENDENT VALIDATOR  |
+|  (owns correctness)    |
++--------+---------------+
+         |
+         v
+    ADMISSIBLE / REJECTED</div>
+      <div class="validator" id="validatorChecks"></div>
+      <div id="valResult" style="margin-top:1rem"></div>
+    </div>
+
+    <div class="panel hidden" id="infPanel">
+      <h3>Infeasibility is first-class</h3>
+      <p><span class="pill hard">NO_COMPLETE_SOLUTION</span></p>
+      <p style="color:var(--muted);font-size:.9rem">
+        Three exclusive tasks each need Forklift F-17 for 45 minutes inside a single
+        60-minute availability window.
+      </p>
+      <div class="chain">
+        <div><strong>NO COMPLETE ADMISSIBLE SOLUTION</strong></div>
+        <div>→ Required resource: <strong>Forklift F-17</strong></div>
+        <div>→ Capacity: <strong>1</strong></div>
+        <div>→ Required simultaneously: 3 × 45m = <strong>135m</strong></div>
+        <div>→ Available capacity: <strong>60m</strong></div>
+        <div>→ Best partial: 1 of 3 tasks placed · 0 hard violations on that partial set</div>
+        <div>→ MultiFlow <strong>refuses to fabricate</strong> a schedule</div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="comparePanel">
+      <h3>Solver fabric · same problem, same validator</h3>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Classical</th>
+            <th>CP-SAT</th>
+            <th>MILP</th>
+            <th>Quantum*</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Runtime</td><td>4 ms</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+          <tr><td>Candidates</td><td>2</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+          <tr><td>Hard violations</td><td>0</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+          <tr><td>Soft score</td><td>0.0</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+          <tr><td>Admissible</td><td><span class="pill ok">✓</span></td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:.75rem 0 0;color:var(--muted);font-size:.8rem">
+        * Future backend. Same SchedulingProblem, same validator — different proposal mechanism.
+      </p>
     </div>
 
     <div class="row">
-      <button onclick="showSolve()">Solve corporate demo</button>
-      <button class="secondary" onclick="showConflict()">Inspect cross-schedule conflict</button>
-      <button class="secondary" onclick="showInfeasible()">Infeasible case</button>
+      <button id="btnDetect" onclick="runDetect()">Detect conflict</button>
+      <button id="btnWhy" class="secondary" disabled onclick="runWhy()">Explain</button>
+      <button id="btnArbitrate" class="secondary" disabled onclick="runArbitrate()">Generate alternatives</button>
+      <button id="btnInfeas" class="secondary" onclick="runInfeas()">Show infeasible case</button>
+      <button id="btnCompare" class="secondary" onclick="runCompare()">Solver fabric</button>
+      <button id="btnReset" class="secondary" onclick="reset()">Reset</button>
     </div>
 
-    <div class="panel" id="out">
-      <h2>Demo</h2>
-      <p style="color:var(--muted);margin:0">
-        Click a button above. This page walks the same loop the Python engine runs:
-        problem → candidates → independent validation → admissible plans.
-        Source of truth is the Python package; this UI is the public story.
-      </p>
-    </div>
+    <p style="color:var(--muted);font-size:.8rem;margin-top:1.5rem">
+      Static demo · no server · canonical corporate scenario from
+      <code>examples/corporate.json</code>.
+      Real engine: <a href="https://github.com/TheBabelDragon/MultiFlow">Python package + CLI</a>.
+    </p>
   </main>
   <footer>
-    MultiFlow owns the problem definition and correctness. Solvers only propose.
+    MultiFlow owns correctness. Solvers only propose.
     · <a href="https://github.com/TheBabelDragon/MultiFlow">GitHub</a>
     · MIT
   </footer>
+
   <script>
-    const SOLVE = {
-      status: "ADMISSIBLE",
-      admissible: 2,
-      candidates: [
-        {
-          id: 1, admissible: true, hard: 0, soft: 0,
-          assignments: [
-            { task: "Forklift preventive maintenance", resources: ["Worker B", "Forklift F-17"], window: "07:00–07:30", schedule: "Maintenance" },
-            { task: "Delivery route 3", resources: ["Vehicle V03"], window: "09:00–10:00", schedule: "Delivery" },
-            { task: "Warehouse load pallets", resources: ["Forklift F-17", "Worker A"], window: "08:00–10:00", schedule: "Warehouse" },
-            { task: "Staffing standup", resources: ["Room R204"], window: "08:00–08:45", schedule: "Staffing" },
-            { task: "HVAC filter change", resources: ["Worker B"], window: "10:00–11:00", schedule: "Facilities" }
-          ]
-        },
-        {
-          id: 2, admissible: true, hard: 0, soft: 0,
-          assignments: [
-            { task: "HVAC filter change", resources: ["Worker A"], window: "10:00–11:00", schedule: "Facilities" },
-            { task: "Staffing standup", resources: ["Room R204"], window: "08:00–08:45", schedule: "Staffing" },
-            { task: "Warehouse load pallets", resources: ["Forklift F-17", "Worker A"], window: "11:15–13:15", schedule: "Warehouse" },
-            { task: "Delivery route 3", resources: ["Vehicle V03"], window: "09:00–10:00", schedule: "Delivery" },
-            { task: "Forklift preventive maintenance", resources: ["Worker B", "Forklift F-17"], window: "07:00–07:30", schedule: "Maintenance" }
-          ]
-        }
-      ]
-    };
-    const CONFLICT = {
-      resource: "Forklift F-17",
-      schedules: ["Warehouse", "Maintenance"],
-      window: "09:00–09:30",
-      severity: "HARD",
-      chain: [
-        "WHY?",
-        "→ Resource: Forklift F-17",
-        "→ Schedules: Warehouse ↔ Maintenance",
-        "→ Constraint: NoOverlap (HARD)",
-        "→ Overlap: 09:00–09:30",
-        "ALTERNATIVES",
-        "→ Delay maintenance until after warehouse ends",
-        "→ Delay warehouse until after maintenance ends",
-        "→ Move one task to a different resource",
-        "VALIDATED RESULT",
-        "→ Classical solver produced 2 admissible alternative plans"
-      ],
-      resolutions: [
-        "Delay maintenance by 1h05 so it starts after warehouse.",
-        "Delay warehouse by 1h35 so it starts after maintenance.",
-        "Move one of the tasks to a different resource."
-      ]
-    };
-    const INFEASIBLE = {
-      status: "NO_COMPLETE_SOLUTION",
-      reason: "Three exclusive tasks each need Forklift F-17 for 45 minutes inside a single 60-minute availability window.",
-      unplaced: ["task-inf-1", "task-inf-2"],
-      blocking: [
-        "Required resource: Forklift F-17",
-        "Required interval capacity: 3 × 45m = 135m",
-        "Available capacity: 60m",
-        "Best partial plan places 1 of 3 tasks with zero hard violations on that partial set"
-      ]
-    };
-    function el(id) { return document.getElementById(id); }
-    function showSolve() {
-      const html = SOLVE.candidates.map(c => `
-        <div style="margin-bottom:1.1rem">
-          <strong>Candidate ${c.id}</strong>
-          <span class="tag ${c.admissible ? 'ok' : 'hard'}">${c.admissible ? 'ADMISSIBLE' : 'REJECTED'}</span>
-          <span class="tag">hard=${c.hard}</span>
-          <span class="tag soft">soft=${c.soft}</span>
-          <ul>${c.assignments.map(a =>
-            `<li><strong>${a.task}</strong> → [${a.resources.join(', ')}] ${a.window}
-             <span class="tag">${a.schedule}</span></li>`).join('')}</ul>
-        </div>`).join('');
-      el('out').innerHTML = `
-        <h2>Corporate solve · classical greedy v0.2</h2>
-        <p><span class="tag ok">${SOLVE.status}</span>
-           ${SOLVE.admissible} admissible complete plans · 5 tasks · 5 schedules · 6 resources</p>
-        ${html}
-        <p style="color:var(--muted);font-size:.85rem">Validator independently re-checked availability, capability coverage, capacity, no-overlap, and protected windows.</p>`;
+    const CANDIDATES = [
+      {
+        id: "A",
+        title: "Move warehouse later",
+        summary: "Delay warehouse load to 11:15–13:15 so maintenance keeps 09:00–09:30",
+        admissible: true,
+        assignments: [
+          "Maintenance → Worker B + Forklift F-17  [07:00–07:30]",
+          "Warehouse → Forklift F-17 + Worker A    [11:15–13:15]",
+          "Delivery → Vehicle V03                  [09:00–10:00]",
+          "Staffing → Room R204                    [08:00–08:45]",
+          "Facilities → Worker A                   [10:00–11:00]"
+        ],
+        checks: { NoOverlap: true, Availability: true, Capability: true, Capacity: true, ProtectedWindow: true, AllowedWindow: true }
+      },
+      {
+        id: "B",
+        title: "Keep warehouse early, shift maintenance",
+        summary: "Warehouse 08:00–10:00; maintenance already clear at 07:00–07:30",
+        admissible: true,
+        assignments: [
+          "Maintenance → Worker B + Forklift F-17  [07:00–07:30]",
+          "Warehouse → Forklift F-17 + Worker A    [08:00–10:00]",
+          "Delivery → Vehicle V03                  [09:00–10:00]",
+          "Staffing → Room R204                    [08:00–08:45]",
+          "Facilities → Worker B                   [10:00–11:00]"
+        ],
+        checks: { NoOverlap: true, Availability: true, Capability: true, Capacity: true, ProtectedWindow: true, AllowedWindow: true }
+      },
+      {
+        id: "C",
+        title: "Force both at 09:00 (invalid)",
+        summary: "Keep original overlapping windows — demonstrates validator rejection",
+        admissible: false,
+        assignments: [
+          "Warehouse → Forklift F-17 + Worker A    [08:00–10:00]",
+          "Maintenance → Worker B + Forklift F-17  [09:00–09:30]",
+          "Delivery → Vehicle V03                  [09:15–10:15]"
+        ],
+        checks: { NoOverlap: false, Availability: true, Capability: true, Capacity: false, ProtectedWindow: true, AllowedWindow: true },
+        rejection: "HARD VIOLATION [NoOverlap] Forklift F-17 double-booked 09:00–09:30 (Warehouse ↔ Maintenance)"
+      }
+    ];
+
+    function $(id){ return document.getElementById(id); }
+
+    function runDetect(){
+      document.querySelectorAll('.res[data-r="forklift"]').forEach(el => el.classList.add('conflict'));
+      $('conflictBanner').classList.remove('hidden');
+      $('btnWhy').disabled = false;
+      $('btnDetect').disabled = true;
+      $('arrow1').textContent = '↓ CONFLICT on Forklift F-17';
+      $('arrow1').style.color = 'var(--hard)';
     }
-    function showConflict() {
-      el('out').innerHTML = `
-        <h2>Cross-schedule conflict</h2>
-        <p><span class="tag hard">${CONFLICT.severity}</span>
-           Resource <strong>${CONFLICT.resource}</strong> ·
-           ${CONFLICT.schedules.join(' ↔ ')} · ${CONFLICT.window}</p>
-        <div class="chain">${CONFLICT.chain.map(s => `<div class="step">${s}</div>`).join('')}</div>
-        <p style="margin-top:.8rem"><strong>Possible resolutions</strong></p>
-        <ul>${CONFLICT.resolutions.map(r => `<li>${r}</li>`).join('')}</ul>`;
+
+    function runWhy(){
+      $('whyPanel').classList.remove('hidden');
+      $('btnArbitrate').disabled = false;
+      $('btnWhy').disabled = true;
+      $('whyPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
     }
-    function showInfeasible() {
-      el('out').innerHTML = `
-        <h2>Infeasibility is a first-class result</h2>
-        <p><span class="tag hard">${INFEASIBLE.status}</span></p>
-        <p>${INFEASIBLE.reason}</p>
-        <div class="chain">
-          <div class="step">NO COMPLETE ADMISSIBLE SOLUTION</div>
-          ${INFEASIBLE.blocking.map(b => `<div class="step">→ ${b}</div>`).join('')}
-          <div class="step">Unplaced: ${INFEASIBLE.unplaced.join(', ')}</div>
-        </div>
-        <p style="color:var(--muted);font-size:.85rem">The engine does not invent a schedule when capacity is exhausted. Partial admissible placements are reported; completeness is explicit.</p>`;
+
+    function runArbitrate(){
+      $('candPanel').classList.remove('hidden');
+      const root = $('cands');
+      root.innerHTML = '';
+      CANDIDATES.forEach((c) => {
+        const div = document.createElement('div');
+        div.className = 'cand' + (c.admissible ? '' : ' rejected');
+        div.innerHTML = `
+          <h4>Plan ${c.id} · ${c.title}
+            <span class="pill ${c.admissible?'ok':'hard'}">${c.admissible?'PROPOSED':'PROPOSED · WILL FAIL'}</span>
+          </h4>
+          <div style="font-size:.85rem;color:var(--muted)">${c.summary}</div>
+          <ul>${c.assignments.map(a=>`<li>${a}</li>`).join('')}</ul>
+          <div style="margin-top:.5rem;font-size:.8rem;color:var(--accent)">Click to validate →</div>`;
+        div.onclick = () => validate(c, div);
+        root.appendChild(div);
+      });
+      $('btnArbitrate').disabled = true;
+      $('candPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    function validate(c, el){
+      document.querySelectorAll('.cand').forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+      $('valPanel').classList.remove('hidden');
+      const box = $('validatorChecks');
+      box.innerHTML = '';
+      Object.entries(c.checks).forEach(([name, pass]) => {
+        const d = document.createElement('div');
+        d.className = 'vcheck ' + (pass ? 'pass' : 'fail');
+        d.innerHTML = `<span>${name}</span><span class="pill ${pass?'ok':'hard'}">${pass?'✓':'✗'}</span>`;
+        box.appendChild(d);
+      });
+      const res = $('valResult');
+      if (c.admissible) {
+        res.innerHTML = `
+          <span class="pill ok">ADMISSIBLE PLAN</span>
+          <p style="margin:.5rem 0 0;color:var(--muted);font-size:.9rem">
+            Zero hard violations. Soft penalty 0.0. Validator accepted independently of the solver.
+          </p>`;
+      } else {
+        res.innerHTML = `
+          <span class="pill hard">REJECTED</span>
+          <div class="chain" style="margin-top:.6rem">
+            <div><strong>VALIDATOR REJECTED</strong></div>
+            <div>→ ${c.rejection}</div>
+            <div>→ Solver proposed it · validator owns correctness</div>
+          </div>`;
+      }
+      $('valPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    function runInfeas(){
+      $('infPanel').classList.remove('hidden');
+      $('infPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    function runCompare(){
+      $('comparePanel').classList.remove('hidden');
+      $('comparePanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    function reset(){
+      document.querySelectorAll('.res.conflict').forEach(el => el.classList.remove('conflict'));
+      ['conflictBanner','whyPanel','candPanel','valPanel','infPanel','comparePanel'].forEach(id => $(id).classList.add('hidden'));
+      $('btnDetect').disabled = false;
+      $('btnWhy').disabled = true;
+      $('btnArbitrate').disabled = true;
+      $('arrow1').textContent = '↓ shared resource contention';
+      $('arrow1').style.color = '';
+      $('cands').innerHTML = '';
+      $('validatorChecks').innerHTML = '';
+      $('valResult').innerHTML = '';
+      window.scrollTo({top:0,behavior:'smooth'});
     }
   </script>
 </body>
