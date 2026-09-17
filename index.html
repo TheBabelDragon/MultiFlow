@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MultiFlow — shared resources, competing schedules, constraint arbitration</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --panel: #141b24; --panel2: #1a2330;
+      --text: #e8eef6; --muted: #8b9bb0; --line: #243044;
+      --accent: #4d9fff; --hard: #ff6b6b; --soft: #f0c14a; --ok: #3dd68c;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+           background: var(--bg); color: var(--text); line-height: 1.55; }
+    a { color: var(--accent); }
+    header { padding: 1.5rem 1.5rem 1rem; border-bottom: 1px solid var(--line); }
+    header h1 { margin: 0; font-size: 1.5rem; letter-spacing: .03em; }
+    header .tagline { color: var(--muted); margin: .4rem 0 0; }
+    main { max-width: 1080px; margin: 0 auto; padding: 1.5rem; }
+    .constitution {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .78rem; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 10px; padding: 1rem 1.2rem; overflow-x: auto; white-space: pre;
+      color: #c5d4e8; margin: 1rem 0 1.5rem;
+    }
+    .story {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .6rem; margin: 1rem 0 1.5rem;
+    }
+    .story .box {
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+      padding: .7rem .8rem; text-align: center; font-size: .85rem;
+    }
+    .story .box strong { display: block; color: var(--accent); margin-bottom: .25rem; }
+    .arrow { text-align: center; color: var(--muted); font-size: 1.2rem; margin: .2rem 0; }
+    .row { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+    button {
+      background: var(--accent); color: #fff; border: 0; padding: .6rem 1.1rem;
+      border-radius: 7px; cursor: pointer; font-weight: 600; font-size: .9rem;
+    }
+    button.secondary { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+    button:hover { filter: brightness(1.08); }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+      padding: 1rem 1.15rem; margin-bottom: 1rem;
+    }
+    .panel h2 { margin: 0 0 .75rem; font-size: .85rem; text-transform: uppercase;
+                letter-spacing: .07em; color: var(--muted); }
+    .tag {
+      display: inline-block; padding: .12rem .45rem; border-radius: 4px;
+      font-size: .72rem; font-weight: 700; margin-right: .25rem;
+    }
+    .tag.hard { background: rgba(255,107,107,.18); color: var(--hard); }
+    .tag.ok { background: rgba(61,214,140,.15); color: var(--ok); }
+    .tag.soft { background: rgba(240,193,74,.15); color: var(--soft); }
+    .chain {
+      border-left: 3px solid var(--hard); padding-left: .85rem; margin: .6rem 0;
+      color: var(--muted); font-size: .88rem;
+    }
+    .chain .step { margin: .2rem 0; }
+    ul { margin: .35rem 0; padding-left: 1.15rem; }
+    li { margin: .2rem 0; }
+    footer { color: var(--muted); font-size: .8rem; padding: 1.5rem; text-align: center;
+             border-top: 1px solid var(--line); margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MultiFlow</h1>
+    <p class="tagline">Shared resources. Competing schedules. Constraint arbitration.</p>
+  </header>
+  <main>
+    <div class="constitution">             MULTIFLOW
+      +----------------------+
+      |   DOMAIN INPUT       |
+      | people / machines /  |
+      | rooms / vehicles ... |
+      +----------+-----------+
+                 |
+                 v
+      +----------------------+
+      | NORMALIZED PROBLEM   |
+      | resources + tasks +  |
+      | constraints + goals  |
+      +----------+-----------+
+                 |
+                 v
+      +----------------------+
+      |    SOLVER FABRIC     |
+      | classical / MILP /   |
+      | CP / quantum         |
+      +----------+-----------+
+                 |
+                 v
+      +----------------------+
+      |     VALIDATOR        |
+      | independent truth    |
+      +----------+-----------+
+                 |
+                 v
+      +----------------------+
+      |   ADMISSIBLE PLAN    |
+      +----------------------+</div>
+
+    <div class="story">
+      <div class="box"><strong>Staffing</strong>schedule</div>
+      <div class="box"><strong>Maintenance</strong>schedule</div>
+      <div class="box"><strong>Warehouse</strong>schedule</div>
+      <div class="box"><strong>Delivery</strong>schedule</div>
+           <div class="box"><strong>Facilities</strong>schedule</div>
+    </div>
+    <div class="arrow">shared resources: Forklift F-17 · Worker A/B · Room R204 · Vehicle V03</div>
+    <div class="arrow">v</div>
+    <div class="story" style="grid-template-columns:1fr">
+      <div class="box"><strong style="color:var(--hard)">CONFLICT</strong>detect → explain → alternatives → validate</div>
+    </div>
+
+    <div class="row">
+      <button onclick="showSolve()">Solve corporate demo</button>
+      <button class="secondary" onclick="showConflict()">Inspect cross-schedule conflict</button>
+      <button class="secondary" onclick="showInfeasible()">Infeasible case</button>
+    </div>
+
+    <div class="panel" id="out">
+      <h2>Demo</h2>
+      <p style="color:var(--muted);margin:0">
+        Click a button above. This page walks the same loop the Python engine runs:
+        problem → candidates → independent validation → admissible plans.
+        Source of truth is the Python package; this UI is the public story.
+      </p>
+    </div>
+  </main>
+  <footer>
+    MultiFlow owns the problem definition and correctness. Solvers only propose.
+    · <a href="https://github.com/TheBabelDragon/MultiFlow">GitHub</a>
+    · MIT
+  </footer>
+  <script>
+    const SOLVE = {
+      status: "ADMISSIBLE",
+      admissible: 2,
+      candidates: [
+        {
+          id: 1, admissible: true, hard: 0, soft: 0,
+          assignments: [
+            { task: "Forklift preventive maintenance", resources: ["Worker B", "Forklift F-17"], window: "07:00–07:30", schedule: "Maintenance" },
+            { task: "Delivery route 3", resources: ["Vehicle V03"], window: "09:00–10:00", schedule: "Delivery" },
+            { task: "Warehouse load pallets", resources: ["Forklift F-17", "Worker A"], window: "08:00–10:00", schedule: "Warehouse" },
+            { task: "Staffing standup", resources: ["Room R204"], window: "08:00–08:45", schedule: "Staffing" },
+            { task: "HVAC filter change", resources: ["Worker B"], window: "10:00–11:00", schedule: "Facilities" }
+          ]
+        },
+        {
+          id: 2, admissible: true, hard: 0, soft: 0,
+          assignments: [
+            { task: "HVAC filter change", resources: ["Worker A"], window: "10:00–11:00", schedule: "Facilities" },
+            { task: "Staffing standup", resources: ["Room R204"], window: "08:00–08:45", schedule: "Staffing" },
+            { task: "Warehouse load pallets", resources: ["Forklift F-17", "Worker A"], window: "11:15–13:15", schedule: "Warehouse" },
+            { task: "Delivery route 3", resources: ["Vehicle V03"], window: "09:00–10:00", schedule: "Delivery" },
+            { task: "Forklift preventive maintenance", resources: ["Worker B", "Forklift F-17"], window: "07:00–07:30", schedule: "Maintenance" }
+          ]
+        }
+      ]
+    };
+    const CONFLICT = {
+      resource: "Forklift F-17",
+      schedules: ["Warehouse", "Maintenance"],
+      window: "09:00–09:30",
+      severity: "HARD",
+      chain: [
+        "WHY?",
+        "→ Resource: Forklift F-17",
+        "→ Schedules: Warehouse ↔ Maintenance",
+        "→ Constraint: NoOverlap (HARD)",
+        "→ Overlap: 09:00–09:30",
+        "ALTERNATIVES",
+        "→ Delay maintenance until after warehouse ends",
+        "→ Delay warehouse until after maintenance ends",
+        "→ Move one task to a different resource",
+        "VALIDATED RESULT",
+        "→ Classical solver produced 2 admissible alternative plans"
+      ],
+      resolutions: [
+        "Delay maintenance by 1h05 so it starts after warehouse.",
+        "Delay warehouse by 1h35 so it starts after maintenance.",
+        "Move one of the tasks to a different resource."
+      ]
+    };
+    const INFEASIBLE = {
+      status: "NO_COMPLETE_SOLUTION",
+      reason: "Three exclusive tasks each need Forklift F-17 for 45 minutes inside a single 60-minute availability window.",
+      unplaced: ["task-inf-1", "task-inf-2"],
+      blocking: [
+        "Required resource: Forklift F-17",
+        "Required interval capacity: 3 × 45m = 135m",
+        "Available capacity: 60m",
+        "Best partial plan places 1 of 3 tasks with zero hard violations on that partial set"
+      ]
+    };
+    function el(id) { return document.getElementById(id); }
+    function showSolve() {
+      const html = SOLVE.candidates.map(c => `
+        <div style="margin-bottom:1.1rem">
+          <strong>Candidate ${c.id}</strong>
+          <span class="tag ${c.admissible ? 'ok' : 'hard'}">${c.admissible ? 'ADMISSIBLE' : 'REJECTED'}</span>
+          <span class="tag">hard=${c.hard}</span>
+          <span class="tag soft">soft=${c.soft}</span>
+          <ul>${c.assignments.map(a =>
+            `<li><strong>${a.task}</strong> → [${a.resources.join(', ')}] ${a.window}
+             <span class="tag">${a.schedule}</span></li>`).join('')}</ul>
+        </div>`).join('');
+      el('out').innerHTML = `
+        <h2>Corporate solve · classical greedy v0.2</h2>
+        <p><span class="tag ok">${SOLVE.status}</span>
+           ${SOLVE.admissible} admissible complete plans · 5 tasks · 5 schedules · 6 resources</p>
+        ${html}
+        <p style="color:var(--muted);font-size:.85rem">Validator independently re-checked availability, capability coverage, capacity, no-overlap, and protected windows.</p>`;
+    }
+    function showConflict() {
+      el('out').innerHTML = `
+        <h2>Cross-schedule conflict</h2>
+        <p><span class="tag hard">${CONFLICT.severity}</span>
+           Resource <strong>${CONFLICT.resource}</strong> ·
+           ${CONFLICT.schedules.join(' ↔ ')} · ${CONFLICT.window}</p>
+        <div class="chain">${CONFLICT.chain.map(s => `<div class="step">${s}</div>`).join('')}</div>
+        <p style="margin-top:.8rem"><strong>Possible resolutions</strong></p>
+        <ul>${CONFLICT.resolutions.map(r => `<li>${r}</li>`).join('')}</ul>`;
+    }
+    function showInfeasible() {
+      el('out').innerHTML = `
+        <h2>Infeasibility is a first-class result</h2>
+        <p><span class="tag hard">${INFEASIBLE.status}</span></p>
+        <p>${INFEASIBLE.reason}</p>
+        <div class="chain">
+          <div class="step">NO COMPLETE ADMISSIBLE SOLUTION</div>
+          ${INFEASIBLE.blocking.map(b => `<div class="step">→ ${b}</div>`).join('')}
+          <div class="step">Unplaced: ${INFEASIBLE.unplaced.join(', ')}</div>
+        </div>
+        <p style="color:var(--muted);font-size:.85rem">The engine does not invent a schedule when capacity is exhausted. Partial admissible placements are reported; completeness is explicit.</p>`;
+    }
+  </script>
+</body>
+</html>
