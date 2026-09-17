@@ -1,9 +1,6 @@
 """CP-SAT backend via OR-Tools (optional).
 
 Install: pip install "multiflow[cp-sat]"
-
-Pipeline:
-  SchedulingProblem -> CP-SAT model -> solution -> CandidateSolution -> Validator
 """
 
 from __future__ import annotations
@@ -27,11 +24,11 @@ from multiflow.solver.result import SolverResult, SolverStatus
 def _require_ortools():
     try:
         from ortools.sat.python import cp_model  # noqa: F401
-    except ImportError as exc:
+    except ImportError as err:
         raise ImportError(
             'OR-Tools is required for the CP-SAT backend. '
             'Install with: pip install "multiflow[cp-sat]"'
-        ) from exp
+        ) from err
 
 
 class CPSATSolver(Solver):
@@ -62,8 +59,7 @@ class CPSATSolver(Solver):
         t0 = time.perf_counter()
         model = cp_model.CpModel()
 
-        all_starts = []
-        all_ends = []
+        all_starts, all_ends = [], []
         for t in problem.tasks:
             for w in t.allowed_windows:
                 all_starts.append(w.start)
@@ -103,7 +99,7 @@ class CPSATSolver(Solver):
             task_starts[task.id] = start_var
             task_presences[task.id] = {}
 
-            candidates = []
+            cands = []
             for res in problem.resources:
                 matches = False
                 for req in task.requirements:
@@ -117,14 +113,14 @@ class CPSATSolver(Solver):
                     continue
                 present = model.NewBoolVar(f"pres_{task.id}_{res.id}")
                 task_presences[task.id][res.id] = present
-                candidates.append(present)
+                cands.append(present)
                 opt_iv = model.NewOptionalIntervalVar(
                     start_var, duration_m, end_var, present, f"opt_{task.id}_{res.id}"
                 )
                 setattr(model, f"_opt_{task.id}_{res.id}", opt_iv)
 
-            if candidates:
-                model.Add(sum(candidates) >= 1)
+            if cands:
+                model.Add(sum(cands) >= 1)
 
         for res in problem.resources:
             intervals = []
