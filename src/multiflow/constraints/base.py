@@ -1,56 +1,94 @@
-"""Constraint base classes and evaluation context."""
+"""Constraint architecture.
+
+Constraint -> evaluate(context) -> ConstraintResult
+"""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 
 from multiflow.domain.models import (
     Assignment,
     ConstraintResult,
+    Resource,
     SchedulingProblem,
     Severity,
+    Task,
+    TimeWindow,
 )
 
 
 class EvaluationContext:
-    """Shared context for constraint evaluation."""
+    """Everything a constraint needs to decide satisfaction."""
 
-    def __init__(self, problem: SchedulingProblem, assignments: list[Assignment]):
+    def __init__(
+        self,
+        problem: SchedulingProblem,
+        assignments: list[Assignment],
+        focus_assignment: Optional[Assignment] = None,
+    ):
         self.problem = problem
-        self.assignments = list(assignments)
-        self._by_resource: dict[str, list[Assignment]] | None = None
-        self._by_task: dict[str, list[Assignment]] | None = None
+        self.assignments = assignments
+        self.focus_assignment = focus_assignment
+        self._resource_index = {r.id: r for r in problem.resources}
+        self._task_index = {t.id: t for t in problem.tasks}
 
-    def assignments_for_resource(self, resource_id: str) -> list[Assignment]:
-        if self._by_resource is None:
-            self._by_resource = {}
-            for a in self.assignments:
-                for rid in a.resource_ids:
-                    self._by_resource.setdefault(rid, []).append(a)
-        return self._by_resource.get(resource_id, [])
+    def resource(self, rid: str) -> Optional[Resource]:
+        return self._resource_index.get(rid)
 
-    def assignments_for_task(self, task_id: str) -> list[Assignment]:
-        if self._by_task is None:
-            self._by_task = {}
-            for a in self.assignments:
-                self._by_task.setdefault(a.task_id, []).append(a)
-        return self._by_task.get(task_id, [])
+    def task(self, tid: str) -> Optional[Task]:
+        return self._task_index.get(tid)
 
-    def resource(self, resource_id: str):
-        return self.problem.resource_by_id(resource_id)
+    def assignments_for_resource(self, rid: str) -> list[Assignment]:
+        return [a for a in self.assignments if rid in a.resource_ids]
 
-    def task(self, task_id: str):
-        return self.problem.task_by_id(task_id)
+    def assignments_for_task(self, tid: str) -> list[Assignment]:
+        return [a for a in self.assignments if a.task_id == tid]
 
 
 class Constraint(ABC):
-    """Hard or soft constraint. Never returns a bare bool."""
+    """First-class constraint object. Hard or soft."""
 
-    id: str = "constraint"
-    severity: Severity = Severity.HARD
+    def __init__(
+        self,
+        id: str,
+        severity: Severity = Severity.HARD,
+        name: Optional[str] = None,
+        attributes: Optional[dict[str, Any]] = None,
+    ):
+        self.id = id
+        self.severity = severity
+        self.name = name or self.__class__.__name__
+        self.attributes = attributes or {}
+
+    @property
+    def constraint_type(self) -> str:
+        return self.__class__.__name__
 
     @abstractmethod
     def evaluate(self, ctx: EvaluationContext) -> list[ConstraintResult]:
-        """Return zero or more ConstraintResult objects."""
         ...
+
+    def _result(
+        self,
+        satisfied: bool,
+        explanation: str = "",
+        affected_resources: Optional[list[str]] = None,
+        affected_tasks: Optional[list[str]] = None,
+        time_range: Optional[TimeWindow] = None,
+        penalty: float = 0.0,
+        details: Optional[dict[str, Any]] = None,
+    ) -> ConstraintResult:
+        return ConstraintResult(
+            satisfied=satisfied,
+            severity=self.severity,
+            constraint_id=self.id,
+            constraint_type=self.constraint_type,
+            affected_resources=affected_resources or [],
+            affected_tasks=affected_tasks or [],
+            time_range=time_range,
+            penalty=0.0 if satisfied else (penalty if self.severity == Severity.SOFT else 0.0),
+            explanation=explanation,
+            details=details or {},
+        )
