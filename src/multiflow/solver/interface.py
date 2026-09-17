@@ -24,17 +24,26 @@ class Solver(ABC):
     name: str = "abstract"
     version: str = "0.0.0"
 
+    def capabilities(self) -> dict[str, Any]:
+        """Lightweight capability flags for the fabric."""
+        return {
+            "supports_hard_constraints": True,
+            "supports_soft_constraints": True,
+            "supports_objective": True,
+            "supports_multiple_candidates": False,
+            "supports_timeout": False,
+            "deterministic": False,
+            "hardware_required": False,
+            "available": True,
+        }
+
     @abstractmethod
     def solve(self, problem: SchedulingProblem) -> list[CandidateSolution]:
         """Return zero or more candidate solutions. Never claims correctness."""
         ...
 
     def solve_result(self, problem: SchedulingProblem) -> SolverResult:
-        """Return a structured SolverResult wrapping candidates.
-
-        Default implementation wraps solve(). Backends may override for
-        richer status (OPTIMAL / INFEASIBLE / TIME_LIMIT / UNAVAILABLE).
-        """
+        """Return a structured SolverResult wrapping candidates."""
         import time
 
         t0 = time.perf_counter()
@@ -47,6 +56,7 @@ class Solver(ABC):
                 solver_name=getattr(self, "name", "unknown"),
                 solver_version=getattr(self, "version", "0.0.0"),
                 runtime_seconds=time.perf_counter() - t0,
+                termination_reason=str(exc),
                 metadata={"error": str(exc)},
             )
         runtime = time.perf_counter() - t0

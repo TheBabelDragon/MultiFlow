@@ -19,6 +19,7 @@ class SolverStatus(str, Enum):
     FEASIBLE = "FEASIBLE"
     INFEASIBLE = "INFEASIBLE"
     TIME_LIMIT = "TIME_LIMIT"
+    CANCELLED = "CANCELLED"
     ERROR = "ERROR"
     UNAVAILABLE = "UNAVAILABLE"
 
@@ -36,6 +37,7 @@ class SolverResult(BaseModel):
     solver_version: str
     objective_value: Optional[float] = None
     runtime_seconds: Optional[float] = None
+    termination_reason: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @property

@@ -1,0 +1,74 @@
+{
+  "schema_version": "multiflow.problem.v1",
+  "id": "prob-solver-benchmark",
+  "resources": [
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "res-a",
+      "type": "worker",
+      "name": "Worker A",
+      "capabilities": ["general"],
+      "availability": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T07:00:00+00:00", "end": "2026-09-17T18:00:00+00:00"}],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "res-b",
+      "type": "worker",
+      "name": "Worker B",
+      "capabilities": ["general"],
+      "availability": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T07:00:00+00:00", "end": "2026-09-17T18:00:00+00:00"}],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "res-shared",
+      "type": "equipment",
+      "name": "Shared Tool",
+      "capabilities": ["tool"],
+      "availability": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T07:00:00+00:00", "end": "2026-09-17T18:00:00+00:00"}],
+      "capacity": 1
+    }
+  ],
+  "tasks": [
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-1",
+      "name": "Job 1",
+      "requirements": [{"capability": "general", "quantity": 1}, {"capability": "tool", "quantity": 1}],
+      "duration_seconds": 3600,
+      "allowed_windows": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T08:00:00+00:00", "end": "2026-09-17T14:00:00+00:00"}],
+      "priority": 5
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-2",
+      "name": "Job 2",
+      "requirements": [{"capability": "general", "quantity": 1}, {"capability": "tool", "quantity": 1}],
+      "duration_seconds": 3600,
+      "allowed_windows": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T08:00:00+00:00", "end": "2026-09-17T14:00:00+00:00"}],
+      "priority": 5
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-3",
+      "name": "Job 3",
+      "requirements": [{"capability": "general", "quantity": 1}],
+      "duration_seconds": 1800,
+      "allowed_windows": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T09:00:00+00:00", "end": "2026-09-17T16:00:00+00:00"}],
+      "priority": 3
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-4",
+      "name": "Job 4",
+      "requirements": [{"capability": "tool", "quantity": 1}],
+      "duration_seconds": 1800,
+      "allowed_windows": [{"schema_version": "multiflow.timewindow.v1", "start": "2026-09-17T10:00:00+00:00", "end": "2026-09-17T17:00:00+00:00"}],
+      "priority": 4
+    }
+  ],
+  "constraints": [{"type": "NoOverlapConstraint"}],
+  "objectives": [],
+  "schedules": []
+}
