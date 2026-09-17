@@ -1,4 +1,4 @@
-"""CLI: multiflow solve <problem.json>"""
+"""CLI: multiflow solve <problem.json> [--solver classical|cp-sat|milp|quantum]"""
 
 from __future__ import annotations
 
@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 from multiflow.serialization.io import load_problem
-from multiflow.solver.classical import ClassicalSolver
+from multiflow.solver.registry import available_solvers, get_solver
+from multiflow.solver.result import SolverStatus
 from multiflow.validation.validator import Validator
 
 
@@ -19,14 +20,40 @@ def cmd_solve(args: argparse.Namespace) -> int:
         return 2
 
     problem = load_problem(path)
-    solver = ClassicalSolver(max_candidates=args.candidates)
-    candidates = solver.solve(problem)
+
+    solver_name = getattr(args, "solver", "classical")
+    try:
+        solver = get_solver(solver_name, max_candidates=getattr(args, "candidates", 5))
+    except TypeError:
+        try:
+            solver = get_solver(solver_name)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    result = solver.solve_result(problem)
     validator = Validator()
+
+    if result.status == SolverStatus.UNAVAILABLE:
+        print(
+            json.dumps(
+                {
+                    "status": "UNAVAILABLE",
+                    "solver": result.solver_name,
+                    "message": result.metadata.get("hint", "backend unavailable"),
+                },
+                indent=2,
+            )
+        )
+        return 2
 
     task_ids = {t.id for t in problem.tasks}
     complete_admissible = []
     reports = []
-    for c in candidates:
+    for c in result.candidates:
         vr = validator.validate(problem, c)
         c.score = vr.score
         placed = {a.task_id for a in c.assignments}
@@ -57,65 +84,74 @@ def cmd_solve(args: argparse.Namespace) -> int:
         if vr.admissible and complete:
             complete_admissible.append(entry)
 
-    if complete_admissible:
-        status = "ADMISSIBLE"
-    elif any(r["admissible"] for r in reports):
-        status = "NO_COMPLETE_SOLUTION"
-    else:
-        status = "NO_ADMISSIBLE_SOLUTION"
-
-    result = {
-        "schema_version": "multiflow.solve_result.v1",
+    out = {
         "problem_id": problem.id,
-        "solver": solver.metadata(),
-        "candidate_count": len(reports),
-        "admissible_count": sum(1 for r in reports if r["admissible"]),
-        "complete_admissible_count": len(complete_admissible),
-        "status": status,
+        "solver": result.solver_name,
+        "solver_version": result.solver_version,
+        "solver_status": result.status.value,
+        "runtime_seconds": result.runtime_seconds,
+        "objective_value": result.objective_value,
         "candidates": reports,
     }
 
+    if complete_admissible:
+        out["outcome"] = "ADMISSIBLE"
+        out["best"] = complete_admissible[0]
+        code = 0
+    elif any(r["admissible"] for r in reports):
+        out["outcome"] = "PARTIAL_ADMISSIBLE"
+        code = 1
+    elif result.status == SolverStatus.INFEASIBLE:
+        out["outcome"] = "NO_COMPLETE_SOLUTION"
+        out["solver_reported"] = "INFEASIBLE"
+        code = 1
+    else:
+        out["outcome"] = "NO_COMPLETE_SOLUTION"
+        code = 1
+
+    text = json.dumps(out, indent=2, default=str)
     if args.output:
-        Path(args.output).write_text(json.dumps(result, indent=2) + "\n")
+        Path(args.output).write_text(text)
         print(f"wrote {args.output}")
     else:
-        print(json.dumps(result, indent=2))
+        print(text)
+    return code
 
-    if status != "ADMISSIBLE":
-        print(f"\n{status}", file=sys.stderr)
-        if reports:
-            best = reports[0]
-            if best.get("unplaced_tasks"):
-                print(f"Unplaced tasks: {best['unplaced_tasks']}", file=sys.stderr)
-            if best.get("explanation_chain"):
-                print("Blocking constraints (best candidate):", file=sys.stderr)
-                for line in best["explanation_chain"][:8]:
-                    print(f"  – {line}", file=sys.stderr)
-            else:
-                print(
-                    "Capacity/availability exhausted before all tasks could be placed.",
-                    file=sys.stderr,
-                )
-        return 1
+
+def cmd_list_solvers(_args: argparse.Namespace) -> int:
+    for name in available_solvers():
+        try:
+            s = get_solver(name)
+            print(f"{name:12} available  ({s.name} {s.version})")
+        except (ValueError, ImportError, TypeError) as exc:
+            print(f"{name:12} UNAVAILABLE  ({exc})")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="multiflow",
-        description="MultiFlow – general-purpose scheduling and constraint arbitration",
-    )
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(prog="multiflow", description="MultiFlow CLI")
+    sub = parser.add_subparsers(dest="command")
 
-    solve_p = sub.add_parser("solve", help="Solve a JSON SchedulingProblem")
-    solve_p.add_argument("problem", help="Path to problem JSON")
-    solve_p.add_argument("-o", "--output", help="Write result JSON to path")
-    solve_p.add_argument(
-        "-n", "--candidates", type=int, default=5, help="Max candidates to generate"
+    p_solve = sub.add_parser("solve", help="Solve a SchedulingProblem JSON file")
+    p_solve.add_argument("problem", help="Path to problem JSON")
+    p_solve.add_argument(
+        "--solver",
+        default="classical",
+        help="Solver backend: classical | cp-sat | milp | quantum (default: classical)",
     )
-    solve_p.set_defaults(func=cmd_solve)
+    p_solve.add_argument(
+        "--candidates", type=int, default=5, help="Max candidates (classical)"
+    )
+    p_solve.add_argument("-o", "--output", help="Write result JSON to path")
+    p_solve.set_defaults(func=cmd_solve)
+
+    p_list = sub.add_parser("solvers", help="List registered solvers")
+    p_list.set_defaults(func=cmd_list_solvers)
 
     args = parser.parse_args(argv)
+    if not getattr(args, "command", None):
+        parser.print_help()
+        return 2
     return args.func(args)
 
 
