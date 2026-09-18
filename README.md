@@ -11,40 +11,48 @@ MultiFlow generalizes the scheduling substrate.
 A future quantum companion can explore alternate optimization backends.
 
 ```
-             MULTIFLOW
-      ┌──────────────────────┐
-      │   DOMAIN INPUT       │
-      │ people / machines /  │
-      │ rooms / vehicles ... │
-      └──────────┬───────────┘
-                 ↓
-      ┌──────────────────────┐
-      │ NORMALIZED PROBLEM   │
-      │ resources + tasks +  │
-      │ constraints + goals  │
-      └──────────┬───────────┘
-                 ↓
-      ┌──────────────────────┐
-      │    SOLVER FABRIC     │
-      │ classical / MILP /   │
-      │ CP / quantum         │
-      └──────────┬───────────┘
-                 ↓
-      ┌──────────────────────┐
-      │     VALIDATOR        │
-      │ independent truth    │
-      └──────────┬───────────┘
-                 ↓
-      ┌──────────────────────┐
-      │   ADMISSIBLE PLAN    │
-      └──────────────────────┘
+LIVE DOMAIN EVENTS
+        ↓
+  NORMALIZED STATE
+        ↓
+   SNAPSHOT
+        ↓
+ SOLVER FABRIC
+        ↓
+   CANDIDATES
+        ↓
+   VALIDATOR
+        ↓
+ADMISSIBLE PLANS
+        ↓
+ DECISION / OVERRIDE
+        ↓
+  RESULTING STATE
+        ↓
+   EVENT HISTORY
+        ↺
 ```
+
+MultiFlow does not merely produce a static schedule.  
+It **maintains a feasible operational state while reality changes**.
 
 The key architectural rule:
 
 > **MultiFlow owns the problem definition and correctness. Solvers only propose solutions.**
 
 Infeasibility is first-class: the engine can return `NO_COMPLETE_SOLUTION` with blocking constraints and remaining capacity — it does not invent a schedule.
+
+A future learned component may rank admissible candidates. It must never establish what is admissible.
+
+```
+ScheduleFeatures
+      ↓
+CandidateScorer
+      ↓
+candidate ranking
+      ↓
+existing Validator
+```
 
 ---
 
@@ -68,6 +76,42 @@ Canonical JSON problems:
 | `examples/corporate.json` | Five schedules, shared forklift/workers |
 | `examples/infeasible.json` | Capacity exhaustion → `NO_COMPLETE_SOLUTION` |
 | `examples/solver-benchmark.json` | Cross-backend comparison |
+
+---
+
+## Live recalculation
+
+```python
+from multiflow import SchedulingProblem, LiveEngine, EventType, SchedulingEvent
+
+problem = SchedulingProblem.from_json("examples/corporate.json")
+engine = LiveEngine(initial_problem=problem)
+
+# Operational change
+engine.apply_event(SchedulingEvent(
+    event_type=EventType.RESOURCE_UNAVAILABLE,
+    entity_ids=["forklift-17"],
+    attributes={"resource_id": "forklift-17"},
+    source="ops",
+    reason="maintenance",
+))
+
+snap = engine.current_snapshot()
+for cand, score in engine.rank_candidates(snap):
+    print(cand.id, score, cand.score.admissible)
+```
+
+Events are append-only. Snapshots capture reproducible solver input.  
+Rejected candidates retain their explanation chains (useful later as negative examples).  
+Human overrides never erase the original solver decision.
+
+Deterministic replay:
+
+```python
+from multiflow import LiveEngine
+
+replayed = LiveEngine.replay(initial_problem, event_stream)
+```
 
 ---
 
@@ -106,6 +150,10 @@ See [docs/solver-fabric.md](docs/solver-fabric.md).
 - Multi-schedule support with shared-resource arbitration
 - Explanation chains on every rejection
 - Pluggable solver fabric (classical / CP-SAT / MILP / quantum interface)
+- **Live event stream, snapshots, and recalculation**
+- **Candidate scoring boundary (deterministic now, learned later)**
+- **Decision / override / outcome recording**
+- **Deterministic replay for audit, regression, and future datasets**
 
 ## License
 
