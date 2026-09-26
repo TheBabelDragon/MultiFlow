@@ -1,0 +1,41 @@
+{
+  "schema_version": "multiflow.problem.v1",
+  "id": "prob-simple",
+  "resources": [
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "res-worker-1",
+      "type": "worker",
+      "name": "Worker 1",
+      "capabilities": ["general"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T08:00:00+00:00",
+          "end": "2026-09-17T17:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    }
+  ],
+  "tasks": [
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-1",
+      "name": "Simple Job",
+      "requirements": [{"capability": "general", "quantity": 1}],
+      "duration_seconds": 3600,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T09:00:00+00:00",
+          "end": "2026-09-17T16:00:00+00:00"
+        }
+      ],
+      "priority": 5
+    }
+  ],
+  "constraints": [{"type": "NoOverlapConstraint"}, {"type": "AvailabilityConstraint"}],
+  "objectives": [],
+  "schedules": []
+}

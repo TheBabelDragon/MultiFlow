@@ -1,1 +1,1 @@
-# Demo package
+"""MultiFlow demonstration entry points."""
