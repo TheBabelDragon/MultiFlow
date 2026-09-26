@@ -1,0 +1,214 @@
+{
+  "schema_version": "multiflow.problem.v1",
+  "id": "prob-corporate",
+  "resources": [
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "worker-alice",
+      "type": "worker",
+      "name": "Alice",
+      "capabilities": ["general", "loading"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T07:00:00+00:00",
+          "end": "2026-09-17T18:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "worker-bob",
+      "type": "worker",
+      "name": "Bob",
+      "capabilities": ["general", "loading"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T07:00:00+00:00",
+          "end": "2026-09-17T18:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "worker-carol",
+      "type": "worker",
+      "name": "Carol",
+      "capabilities": ["general"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T07:00:00+00:00",
+          "end": "2026-09-17T18:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "forklift-17",
+      "type": "equipment",
+      "name": "Forklift 17",
+      "capabilities": ["forklift"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T07:00:00+00:00",
+          "end": "2026-09-17T18:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    },
+    {
+      "schema_version": "multiflow.resource.v1",
+      "id": "dock-a",
+      "type": "facility",
+      "name": "Loading Dock A",
+      "capabilities": ["dock"],
+      "availability": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T07:00:00+00:00",
+          "end": "2026-09-17T18:00:00+00:00"
+        }
+      ],
+      "capacity": 1
+    }
+  ],
+  "tasks": [
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-inbound-1",
+      "name": "Inbound unload #1",
+      "requirements": [
+        {"capability": "loading", "quantity": 1},
+        {"capability": "forklift", "quantity": 1}
+      ],
+      "duration_seconds": 3600,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T08:00:00+00:00",
+          "end": "2026-09-17T14:00:00+00:00"
+        }
+      ],
+      "priority": 8,
+      "schedule_id": "sch-warehouse"
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-inbound-2",
+      "name": "Inbound unload #2",
+      "requirements": [
+        {"capability": "loading", "quantity": 1},
+        {"capability": "forklift", "quantity": 1}
+      ],
+      "duration_seconds": 3600,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T08:00:00+00:00",
+          "end": "2026-09-17T14:00:00+00:00"
+        }
+      ],
+      "priority": 7,
+      "schedule_id": "sch-warehouse"
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-outbound-1",
+      "name": "Outbound load #1",
+      "requirements": [
+        {"capability": "loading", "quantity": 1},
+        {"capability": "dock", "quantity": 1}
+      ],
+      "duration_seconds": 2700,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T09:00:00+00:00",
+          "end": "2026-09-17T16:00:00+00:00"
+        }
+      ],
+      "priority": 6,
+      "schedule_id": "sch-shipping"
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-inspect-1",
+      "name": "Quality inspection",
+      "requirements": [{"capability": "general", "quantity": 1}],
+      "duration_seconds": 1800,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T10:00:00+00:00",
+          "end": "2026-09-17T17:00:00+00:00"
+        }
+      ],
+      "priority": 4,
+      "schedule_id": "sch-qa"
+    },
+    {
+      "schema_version": "multiflow.task.v1",
+      "id": "task-staging-1",
+      "name": "Staging move",
+      "requirements": [
+        {"capability": "general", "quantity": 1},
+        {"capability": "forklift", "quantity": 1}
+      ],
+      "duration_seconds": 1800,
+      "allowed_windows": [
+        {
+          "schema_version": "multiflow.timewindow.v1",
+          "start": "2026-09-17T08:00:00+00:00",
+          "end": "2026-09-17T15:00:00+00:00"
+        }
+      ],
+      "priority": 5,
+      "schedule_id": "sch-warehouse"
+    }
+  ],
+  "constraints": [
+    {"type": "NoOverlapConstraint"},
+    {"type": "AvailabilityConstraint"},
+    {"type": "CapabilityConstraint"},
+    {"type": "CapacityConstraint"}
+  ],
+  "objectives": [],
+  "schedules": [
+    {
+      "schema_version": "multiflow.schedule.v1",
+      "id": "sch-warehouse",
+      "name": "Warehouse operations",
+      "domain": "logistics"
+    },
+    {
+      "schema_version": "multiflow.schedule.v1",
+      "id": "sch-shipping",
+      "name": "Shipping dock",
+      "domain": "logistics"
+    },
+    {
+      "schema_version": "multiflow.schedule.v1",
+      "id": "sch-qa",
+      "name": "Quality assurance",
+      "domain": "qa"
+    },
+    {
+      "schema_version": "multiflow.schedule.v1",
+      "id": "sch-maintenance",
+      "name": "Maintenance window",
+      "domain": "facilities"
+    },
+    {
+      "schema_version": "multiflow.schedule.v1",
+      "id": "sch-admin",
+      "name": "Admin / overflow",
+      "domain": "admin"
+    }
+  ]
+}
