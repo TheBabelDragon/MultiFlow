@@ -45,8 +45,22 @@ from multiflow.constraints.builtin import (
     TimeWindowConstraint,
 )
 from multiflow.serialization.io import load_problem, dump_problem
+from multiflow.live import (
+    SchedulingEvent,
+    EventType,
+    EventStore,
+    ScheduleSnapshot,
+    ScheduleFeatures,
+    FeatureExtractor,
+    CandidateScorer,
+    DeterministicCandidateScorer,
+    DecisionRecord,
+    DecisionSource,
+    OperationalMetrics,
+    LiveEngine,
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __schema_prefix__ = "multiflow"
 
 __all__ = [
@@ -86,4 +100,16 @@ __all__ = [
     "TimeWindowConstraint",
     "load_problem",
     "dump_problem",
+    "SchedulingEvent",
+    "EventType",
+    "EventStore",
+    "ScheduleSnapshot",
+    "ScheduleFeatures",
+    "FeatureExtractor",
+    "CandidateScorer",
+    "DeterministicCandidateScorer",
+    "DecisionRecord",
+    "DecisionSource",
+    "OperationalMetrics",
+    "LiveEngine",
 ]
