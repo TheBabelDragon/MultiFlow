@@ -62,8 +62,10 @@ existing Validator
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-pytest
+pytest -q
 PYTHONPATH=src python -m multiflow.demo.corporate
+PYTHONPATH=src python -m multiflow.demo.live_recalculation
+PYTHONPATH=src python -m multiflow.cli solve examples/simple.json
 PYTHONPATH=src python -m multiflow.cli solve examples/corporate.json
 PYTHONPATH=src python -m multiflow.cli solve examples/infeasible.json
 ```
@@ -87,7 +89,11 @@ from multiflow import SchedulingProblem, LiveEngine, EventType, SchedulingEvent
 problem = SchedulingProblem.from_json("examples/corporate.json")
 engine = LiveEngine(initial_problem=problem)
 
-# Operational change
+# Initial solve → validate → rank
+result = engine.recalculate()
+print("admissible:", len(result["admissible"]))
+
+# Operational change: shared forklift goes offline
 engine.apply_event(SchedulingEvent(
     event_type=EventType.RESOURCE_UNAVAILABLE,
     entity_ids=["forklift-17"],
@@ -96,14 +102,39 @@ engine.apply_event(SchedulingEvent(
     reason="maintenance",
 ))
 
-snap = engine.current_snapshot()
-for cand, score in engine.rank_candidates(snap):
+result = engine.recalculate()
+print("candidates:", len(result["candidates"]))
+print("admissible:", len(result["admissible"]))
+print("rejected:", result["rejected"])
+print("has_admissible_plan:", result["has_admissible_plan"])
+
+for cand, score in engine.rank_candidates():
     print(cand.id, score, cand.score.admissible)
+```
+
+Executable walkthrough:
+
+```bash
+PYTHONPATH=src python -m multiflow.demo.live_recalculation
 ```
 
 Events are append-only. Snapshots capture reproducible solver input.  
 Rejected candidates retain their explanation chains (useful later as negative examples).  
 Human overrides never erase the original solver decision.
+
+Learned-component boundary (deterministic now; neural ranking is future work):
+
+```
+ScheduleFeatures
+      ↓
+CandidateScorer   (DeterministicCandidateScorer today)
+      ↓
+candidate ranking
+      ↓
+existing Validator
+```
+
+A scorer may rank admissible candidates. It must never establish admissibility or bypass the Validator.
 
 Deterministic replay:
 
@@ -111,6 +142,7 @@ Deterministic replay:
 from multiflow import LiveEngine
 
 replayed = LiveEngine.replay(initial_problem, event_stream)
+assert replayed.semantic_state() == engine.semantic_state()
 ```
 
 ---
