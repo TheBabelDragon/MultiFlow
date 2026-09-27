@@ -76,8 +76,9 @@ class Resource(BaseModel):
     attributes: dict[str, Any] = Field(default_factory=dict)
 
     def is_available_during(self, window: TimeWindow) -> bool:
+        # Empty availability means the resource is not available in any window.
         if not self.availability:
-            return True
+            return False
         return any(
             a.start <= window.start and a.end >= window.end for a in self.availability
         )
