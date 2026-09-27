@@ -4,15 +4,15 @@
   "resources": [
     {
       "schema_version": "multiflow.resource.v1",
-      "id": "res-solo",
+      "id": "res-worker-1",
       "type": "worker",
-      "name": "Solo Worker",
-      "capabilities": ["general"],
+      "name": "Worker 1",
+      "capabilities": ["specialized"],
       "availability": [
         {
           "schema_version": "multiflow.timewindow.v1",
-          "start": "2026-09-17T09:00:00+00:00",
-          "end": "2026-09-17T11:00:00+00:00"
+          "start": "2026-09-17T08:00:00+00:00",
+          "end": "2026-09-17T09:00:00+00:00"
         }
       ],
       "capacity": 1
@@ -21,40 +21,21 @@
   "tasks": [
     {
       "schema_version": "multiflow.task.v1",
-      "id": "task-a",
-      "name": "Job A",
+      "id": "task-impossible",
+      "name": "Impossible Job",
       "requirements": [{"capability": "general", "quantity": 1}],
       "duration_seconds": 7200,
       "allowed_windows": [
         {
           "schema_version": "multiflow.timewindow.v1",
-          "start": "2026-09-17T09:00:00+00:00",
-          "end": "2026-09-17T11:00:00+00:00"
-        }
-      ],
-      "priority": 10
-    },
-    {
-      "schema_version": "multiflow.task.v1",
-      "id": "task-b",
-      "name": "Job B",
-      "requirements": [{"capability": "general", "quantity": 1}],
-      "duration_seconds": 7200,
-      "allowed_windows": [
-        {
-          "schema_version": "multiflow.timewindow.v1",
-          "start": "2026-09-17T09:00:00+00:00",
-          "end": "2026-09-17T11:00:00+00:00"
+          "start": "2026-09-17T10:00:00+00:00",
+          "end": "2026-09-17T16:00:00+00:00"
         }
       ],
       "priority": 10
     }
   ],
-  "constraints": [
-    {"type": "NoOverlapConstraint"},
-    {"type": "AvailabilityConstraint"},
-    {"type": "CapacityConstraint"}
-  ],
+  "constraints": [{"type": "NoOverlapConstraint"}, {"type": "AvailabilityConstraint"}, {"type": "CapabilityConstraint"}],
   "objectives": [],
   "schedules": []
 }

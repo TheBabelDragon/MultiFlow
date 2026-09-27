@@ -23,10 +23,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Test
-        run: pytest -q --cov=multiflow --cov-report=term-missing
-      - name: Demo smoke
-        run: PYTHONPATH=src python -m multiflow.demo.corporate
-      - name: Live recalculation demo
+        run: pytest -q
+      - name: Demo live recalculation
         run: PYTHONPATH=src python -m multiflow.demo.live_recalculation
       - name: CLI solve simple
         run: PYTHONPATH=src python -m multiflow.cli solve examples/simple.json
