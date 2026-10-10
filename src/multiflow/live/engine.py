@@ -23,6 +23,11 @@ from multiflow.domain.models import (
     TimeWindow,
 )
 from multiflow.live.decision import DecisionRecord, DecisionSource
+from multiflow.evidence import (
+    DecisionEvidence,
+    decision_record_to_evidence,
+    ConstraintVersion,
+)
 from multiflow.live.events import EventStore, EventType, SchedulingEvent
 from multiflow.live.features import FeatureExtractor
 from multiflow.live.metrics import OperationalMetrics
@@ -57,6 +62,7 @@ class LiveEngine:
         self.feature_extractor = FeatureExtractor(validator=self.validator)
         self.event_store = EventStore()
         self.decision_history: list[DecisionRecord] = []
+        self.evidence_history: list[DecisionEvidence] = []
         self.metrics = OperationalMetrics()
         self._last_candidates: list[CandidateSolution] = []
         self._last_validation: dict[str, Any] = {}
@@ -84,11 +90,7 @@ class LiveEngine:
         return snap
 
     def recalculate(self) -> dict[str, Any]:
-        """Solve -> validate every candidate -> rank admissible -> update metrics.
-
-        Returns a structured result describing candidates, admissibility,
-        and whether an admissible plan exists.
-        """
+        """Solve -> validate every candidate -> rank admissible -> update metrics."""
         snapshot = self.current_snapshot()
         t0 = time.perf_counter()
         candidates = list(self.solver.solve(snapshot.problem))
@@ -158,7 +160,6 @@ class LiveEngine:
     def rank_candidates(
         self, snapshot: Optional[ScheduleSnapshot] = None
     ) -> list[tuple[CandidateSolution, float]]:
-        """Rank admissible candidates for a snapshot (or last recalculation)."""
         if snapshot is None:
             if self._last_ranked:
                 return list(self._last_ranked)
@@ -227,6 +228,15 @@ class LiveEngine:
         self.decision_history.append(record)
         self.metrics.record_decision(is_override=is_override)
 
+        # Shared Evidence Contract: parallel DecisionEvidence (never erases history)
+        evidence = decision_record_to_evidence(
+            record,
+            solver_id=getattr(self.solver, "name", None)
+            or type(self.solver).__name__,
+            solver_version=str(getattr(self.solver, "version", "") or ""),
+        )
+        self.evidence_history.append(evidence)
+
         if is_override:
             override_event = SchedulingEvent(
                 event_type=EventType.HUMAN_OVERRIDE,
@@ -254,7 +264,6 @@ class LiveEngine:
         validator: Optional[Validator] = None,
         scorer: Optional[CandidateScorer] = None,
     ) -> "LiveEngine":
-        """Reproduce operational state from initial problem + ordered events."""
         engine = cls(
             initial_problem=initial_problem,
             solver=solver,
@@ -301,7 +310,6 @@ class LiveEngine:
         return dict(self._last_validation)
 
     def semantic_state(self) -> dict[str, Any]:
-        """Semantic comparison key for deterministic replay assertions."""
         p = self._problem
         return {
             "problem_id": p.id,
