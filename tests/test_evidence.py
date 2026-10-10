@@ -147,3 +147,26 @@ def test_from_decision_record():
     assert "cand-2" in ev.rejected_candidate_ids
     assert "cand-1" in ev.proposed_candidate_ids
     check_evidence_schema(ev)
+
+
+def test_live_engine_records_evidence_history():
+    from pathlib import Path
+    from multiflow import SchedulingProblem, LiveEngine, DecisionSource
+
+    root = Path(__file__).resolve().parents[1]
+    problem = SchedulingProblem.from_json(str(root / "examples" / "simple.json"))
+    engine = LiveEngine(initial_problem=problem)
+    result = engine.recalculate()
+    selected = None
+    if result["admissible"]:
+        selected = result["admissible"][0].id
+    engine.record_decision(
+        selected_candidate_id=selected,
+        source=DecisionSource.SOLVER,
+    )
+    assert len(engine.decision_history) == 1
+    assert len(engine.evidence_history) == 1
+    ev = engine.evidence_history[0]
+    assert ev.snapshot_id == engine.decision_history[0].snapshot_id
+    if selected:
+        assert ev.admitted_candidate_id == selected
