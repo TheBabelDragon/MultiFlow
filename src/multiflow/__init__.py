@@ -45,6 +45,15 @@ from multiflow.constraints.builtin import (
     TimeWindowConstraint,
 )
 from multiflow.serialization.io import load_problem, dump_problem
+from multiflow.evidence import (
+    OutcomeStatus,
+    ConstraintVersion,
+    DecisionEvidence,
+    build_decision_evidence,
+    attach_evidence_ref,
+    check_evidence_schema,
+    decision_record_to_evidence,
+)
 from multiflow.live import (
     SchedulingEvent,
     EventType,
@@ -112,4 +121,11 @@ __all__ = [
     "DecisionSource",
     "OperationalMetrics",
     "LiveEngine",
+    "OutcomeStatus",
+    "ConstraintVersion",
+    "DecisionEvidence",
+    "build_decision_evidence",
+    "attach_evidence_ref",
+    "check_evidence_schema",
+    "decision_record_to_evidence",
 ]

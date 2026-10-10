@@ -44,16 +44,6 @@ Infeasibility is first-class: the engine can return `NO_COMPLETE_SOLUTION` with 
 
 A future learned component may rank admissible candidates. It must never establish what is admissible.
 
-```
-ScheduleFeatures
-      ↓
-CandidateScorer
-      ↓
-candidate ranking
-      ↓
-existing Validator
-```
-
 ---
 
 ## Quick start
@@ -66,20 +56,7 @@ pytest -q
 PYTHONPATH=src python -m multiflow.demo.corporate
 PYTHONPATH=src python -m multiflow.demo.live_recalculation
 PYTHONPATH=src python -m multiflow.cli solve examples/simple.json
-PYTHONPATH=src python -m multiflow.cli solve examples/corporate.json
-PYTHONPATH=src python -m multiflow.cli solve examples/infeasible.json
 ```
-
-Canonical JSON problems:
-
-| File | Purpose |
-|------|---------|
-| `examples/simple.json` | Single resource, single task |
-| `examples/corporate.json` | Five schedules, shared forklift/workers |
-| `examples/infeasible.json` | Capacity exhaustion → `NO_COMPLETE_SOLUTION` |
-| `examples/solver-benchmark.json` | Cross-backend comparison |
-
----
 
 ## Live recalculation
 
@@ -88,75 +65,13 @@ from multiflow import SchedulingProblem, LiveEngine, EventType, SchedulingEvent
 
 problem = SchedulingProblem.from_json("examples/corporate.json")
 engine = LiveEngine(initial_problem=problem)
-
-# Initial solve → validate → rank
 result = engine.recalculate()
-print("admissible:", len(result["admissible"]))
-
-# Operational change: shared forklift goes offline
-engine.apply_event(SchedulingEvent(
-    event_type=EventType.RESOURCE_UNAVAILABLE,
-    entity_ids=["forklift-17"],
-    attributes={"resource_id": "forklift-17"},
-    source="ops",
-    reason="maintenance",
-))
-
-result = engine.recalculate()
-print("candidates:", len(result["candidates"]))
-print("admissible:", len(result["admissible"]))
-print("rejected:", result["rejected"])
-print("has_admissible_plan:", result["has_admissible_plan"])
-
-for cand, score in engine.rank_candidates():
-    print(cand.id, score, cand.score.admissible)
-```
-
-Executable walkthrough:
-
-```bash
-PYTHONPATH=src python -m multiflow.demo.live_recalculation
 ```
 
 Events are append-only. Snapshots capture reproducible solver input.  
-Rejected candidates retain their explanation chains (useful later as negative examples).  
 Human overrides never erase the original solver decision.
 
-Learned-component boundary (deterministic now; neural ranking is future work):
-
-```
-ScheduleFeatures
-      ↓
-CandidateScorer   (DeterministicCandidateScorer today)
-      ↓
-candidate ranking
-      ↓
-existing Validator
-```
-
-A scorer may rank admissible candidates. It must never establish admissibility or bypass the Validator.
-
-Deterministic replay:
-
-```python
-from multiflow import LiveEngine
-
-replayed = LiveEngine.replay(initial_problem, event_stream)
-assert replayed.semantic_state() == engine.semantic_state()
-```
-
----
-
 ## Solver fabric
-
-```python
-from multiflow import SchedulingProblem, get_solver, Validator
-
-problem = SchedulingProblem.from_json("examples/corporate.json")
-result = get_solver("classical").solve_result(problem)
-for candidate in result.candidates:
-    print(Validator().validate(problem, candidate).admissible)
-```
 
 | Backend | Install | Status |
 |---------|---------|--------|
@@ -165,14 +80,11 @@ for candidate in result.candidates:
 | MILP | `pip install "multiflow[milp]"` | optional PuLP |
 | Quantum | companion | interface → `UNAVAILABLE` |
 
-```bash
-multiflow solve examples/corporate.json --solver classical
-multiflow solve examples/corporate.json --solver cp-sat
-multiflow solvers
-python benchmarks/compare_solvers.py examples/solver-benchmark.json
-```
+## Shared Evidence Contract
 
-See [docs/solver-fabric.md](docs/solver-fabric.md).
+Decision and outcome evidence (`multiflow.evidence`) records proposed vs admitted
+candidates, constraint versions, overrides, and optional upstream evidence refs.
+See `docs/SHARED_EVIDENCE_CONTRACT.md`.
 
 ## What MultiFlow is
 
@@ -181,11 +93,10 @@ See [docs/solver-fabric.md](docs/solver-fabric.md).
 - Independent validator (solver cannot define correctness)
 - Multi-schedule support with shared-resource arbitration
 - Explanation chains on every rejection
-- Pluggable solver fabric (classical / CP-SAT / MILP / quantum interface)
-- **Live event stream, snapshots, and recalculation**
-- **Candidate scoring boundary (deterministic now, learned later)**
-- **Decision / override / outcome recording**
-- **Deterministic replay for audit, regression, and future datasets**
+- Pluggable solver fabric
+- Live event stream, snapshots, and recalculation
+- Decision / override / outcome recording with evidence lineage
+- Deterministic replay for audit
 
 ## License
 
