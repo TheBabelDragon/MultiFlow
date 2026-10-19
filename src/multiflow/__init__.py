@@ -3,6 +3,7 @@
 Public API:
 
     from multiflow import SchedulingProblem, ClassicalSolver, Validator, get_solver
+    from multiflow import SchedulingApi, SchedulingRequest
 
     problem = SchedulingProblem.from_json("my_problem.json")
     result = get_solver("classical").solve_result(problem)
@@ -53,6 +54,15 @@ from multiflow.evidence import (
     attach_evidence_ref,
     check_evidence_schema,
     decision_record_to_evidence,
+)
+from multiflow.api import (
+    API_SCHEMA_ID,
+    API_SCHEMA_VERSION,
+    HealthStatus,
+    SchedulingApi,
+    SchedulingRequest,
+    SchedulingResponse,
+    SchedulingStatus,
 )
 from multiflow.live import (
     SchedulingEvent,
@@ -128,4 +138,11 @@ __all__ = [
     "attach_evidence_ref",
     "check_evidence_schema",
     "decision_record_to_evidence",
+    "API_SCHEMA_ID",
+    "API_SCHEMA_VERSION",
+    "HealthStatus",
+    "SchedulingApi",
+    "SchedulingRequest",
+    "SchedulingResponse",
+    "SchedulingStatus",
 ]
